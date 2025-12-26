@@ -1,5 +1,5 @@
 ﻿from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ class PingNotificationDTO(BaseModel):
 
 
 class OrderCreatedNotificationDTO(BaseModel):
-    notificationType: NotificationType.ORDER_CREATED
+    notificationType: Literal[NotificationType.ORDER_CREATED]
     campaignId: int
     createdAt: List[datetime]
     items: List[NotificationOrderItemDTO]
