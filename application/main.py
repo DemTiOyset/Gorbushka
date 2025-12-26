@@ -39,11 +39,14 @@
 
 
 from fastapi import FastAPI
+from api.yandex_webhook import router as yandex_webhook
 
 app = FastAPI(
     title="Gorbushka Keepers",
     debug=True,
 )
+
+app.include_router(yandex_webhook)
 
 
 @app.get("/")

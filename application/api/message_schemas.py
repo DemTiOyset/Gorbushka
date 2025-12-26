@@ -1,19 +1,19 @@
 ﻿from datetime import datetime
-from enums import *
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
+
+from api.enums import *
+from api.param_shemas import *
+
+
+class BaseDTO(BaseModel):
+    notificationType: NotificationType
 
 
 class PingNotificationDTO(BaseModel):
     notificationType: NotificationType.PING
     time: datetime
-
-
-class NotificationOrderItemDTO(BaseModel):
-    count: int
-    offerId: str
-
 
 
 class OrderCreatedNotificationDTO(BaseModel):
@@ -41,7 +41,7 @@ class OrderCancelledNotificationDTO(BaseModel):
     orderId: int
 
 
-class OrderCancellationRequestNotificationDTO:
+class OrderCancellationRequestNotificationDTO(BaseModel):
     notificationType: NotificationType.ORDER_CANCELLATION_REQUEST
     campaignId: int
     orderId: int
@@ -56,12 +56,6 @@ class OrderReturnCreatedNotificationDTO(BaseModel):
     orderId: int
     returnId: int
     returnType: ReturnType
-
-
-class NotificationUpdatedReturnStatusesDTO(BaseModel):
-    refundStatus: RefundStatusType
-    shipmentStatus: ReturnShipmentStatusType
-
 
 
 class OrderReturnStatusUpdatedNotificationDTO(BaseModel):
@@ -123,10 +117,6 @@ class ChatArbitrageFinishedNotificationDTO(BaseModel):
     chatId: int
     finishedAt: datetime
 
-
-class NotificationReturnItemDTO(BaseModel):
-    count: int
-    offerId: str
 
 
 
