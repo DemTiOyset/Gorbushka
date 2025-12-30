@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Body
+﻿from fastapi import APIRouter, Request, Body
 from starlette.responses import JSONResponse
 from typing import Any
 from pydantic import ValidationError

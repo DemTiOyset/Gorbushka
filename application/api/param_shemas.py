@@ -1,6 +1,6 @@
 ﻿from pydantic import BaseModel
 
-from api.enums import *
+from application.api.enums import *
 
 
 class NotificationApiErrorDTO(BaseModel):
