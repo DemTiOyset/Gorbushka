@@ -7,7 +7,7 @@
 from sqlalchemy.orm import DeclarativeBase
 import logging
 
-from config import settings
+from application.config import settings
 
 logger = logging.getLogger(__name__)
 

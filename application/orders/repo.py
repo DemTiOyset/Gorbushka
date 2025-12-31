@@ -1,39 +1,43 @@
-﻿from __future__ import annotations
-
-from typing import Any
-
+﻿from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.database.models.order import Order
+from application.orders.models.order import Order
 
 
 class OrderRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
-    async def create(self, order: Order) -> Order:
+    @classmethod
+    async def create(cls, session: AsyncSession, order: Order) -> Order:
         """
         Create a new order.
 
         Репозиторий НЕ делает commit.
         flush нужен, чтобы получить PK/сгенерированные поля до commit.
         """
-        self.session.add(order)
-        await self.session.flush()
+        session.add(order)
+        await session.flush()
         return order
 
-    async def get_by_id(self, order_id: int) -> Order | None:
+    @classmethod
+    async def get_by_id(
+        cls,
+        session: AsyncSession,
+        order_id: int,
+    ) -> Order | None:
         """
-        Get an order by id.
+        Get order by PK.
+        """
+        return await session.get(Order, order_id)
 
-        В 2.0 стиль: session.get() — самый простой и быстрый путь по PK.
+    @classmethod
+    async def list(
+        cls,
+        session: AsyncSession,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Order]:
         """
-        return await self.session.get(Order, order_id)
-
-    async def list(self, *, limit: int = 100, offset: int = 0) -> list[Order]:
-        """
-        List active orders with basic pagination.
+        List active orders with pagination.
         """
         stmt = (
             select(Order)
@@ -41,14 +45,17 @@ class OrderRepository:
             .limit(limit)
             .offset(offset)
         )
-        result = await self.session.execute(stmt)
+        result = await session.execute(stmt)
         return list(result.scalars().all())
 
-    async def delete(self, order: Order) -> None:
+    @classmethod
+    async def delete(
+        cls,
+        session: AsyncSession,
+        order: Order,
+    ) -> None:
         """
-        Delete an order (hard delete).
-
-        Если тебе нужен soft delete — сделай order.is_active = False и flush.
+        Hard delete.
         """
-        await self.session.delete(order)
-        await self.session.flush()
+        await session.delete(order)
+        await session.flush()

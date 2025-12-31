@@ -6,12 +6,12 @@ from sqlalchemy import pool
 from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from config import settings
+from application.config import settings
 
 
-from db import Base
+from application.db import Base
 
-from orders_model import Order
+from application.orders.models.order import Order
 
 
 # this is the Alembic Config object, which provides

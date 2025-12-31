@@ -3,9 +3,9 @@ from starlette.responses import JSONResponse
 from typing import Any
 from pydantic import ValidationError
 
-from api.enums import *
-from api.message_schemas import *
-from api.param_shemas import *
+from router.enums import *
+from router.message_schemas import *
+from router.param_shemas import *
 
 
 router = APIRouter(
