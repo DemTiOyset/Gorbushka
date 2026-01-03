@@ -1,86 +1,78 @@
 ﻿import asyncio
+import logging
 from datetime import date
+from typing import List, Any
 
-from application.db import async_session_maker
-from application.orders.models.order import Order
+from sqlalchemy.exc import IntegrityError
+
+from application.orders.models.orders import Orders
+from application.orders.services.manage_repo import update_order_status, create_order_with_items
+from application.orders.services.manage_validation import _validate_order_update_status, _validate_order_items, \
+    _validate_order_created
+from application.orders.shemas.enums import NotificationType
+from application.orders.shemas.message import OrderCreatedNotificationDTO, OrderStatusUpdatedNotificationDTO
 from application.orders.test_json import a as test_json
 
 from application.orders.integrations.market.client import get_order
-from application.orders.repo import OrderRepository
-from application.orders.shemas.business_order import BusinessOrderDTO
-from application.orders.shemas.repo_order import CreateOrderDTO
+from application.orders.shemas.orders import OrderDTO, CreateOrderItemsDTO
 
+log = logging.getLogger(__name__)
 
-async def process_notification_payload(payload: dict) -> dict:
-    """Distribution of tasks based on the received notification."""
-    data_from_notifications = await _validate_notifications(payload)
-    unprocessed_order = await get_order(
-        payload["campaign_id"],
-        payload["order_id"]
-    )
-    dtos = await _validate_orders_for_database(unprocessed_order)
-    for dto in dtos:
-        order = dto_to_order(dto)
-        async with async_session_maker() as session:
-            async with session.begin():
-                await OrderRepository.create(session=session, order=order)
+class ManageOrders:
+    """Manage orders."""
+    def __init__(self, payload: dict) -> None:
+        self.payload = payload
 
-    if payload["notificationType"] == "ORDER_CREATED":
-        """Написать логику для создания заказа."""
-    elif payload["notificationType"] == "ORDER_UPDATED":
-        """
-        Написать логику для обновления заказа
-        (нужно дополнительно проверить тип обновления).
-        """
-    elif payload["notificationType"] == "ORDER_CANCELED":
-        """
-        Написать логику для отмены заказа
-        (нужно дополнительно проверить тип отмены).
-        """
+    async def handle_order(self) -> dict[str, Any]:
+        handler = HANDLERS.get(self.payload.get("notificationType"))
+        if handler is None:
+            return {"message": "ignored", "reason": "unsupported_notification_type"}
 
+        return await handler(self)
 
-async def _validate_notifications(notification_payload: dict) -> dict:
-    """Потом разберусь."""
-
-async def _validate_orders_for_database(order_data: BusinessOrderDTO) -> list[CreateOrderDTO]:
-    base = CreateOrderDTO.model_validate(
-        order_data.model_dump(
-            include={"orderId", "campaignId", "status"},
-            exclude_unset=True,
-            by_alias=False,
+    async def handle_order_created(self) -> OrderDTO:
+        unprocessed_order = await get_order(
+            self.payload["campaignId"],
+            self.payload["orderId"]
         )
-    )
 
-    quantity = len(order_data.items)
-    shipping_date = order_data.delivery.shipment.shipmentDate
+        created_notification = OrderCreatedNotificationDTO.model_validate(self.payload)
 
-    orders: list[CreateOrderDTO] = []
-    for item in order_data.items:
-        dto = CreateOrderDTO.model_validate({
-            **base.model_dump(),
-            "quantity": quantity,
-            "shipping_date": shipping_date,
-            "market_cost": item.prices.payment,
-            "product_name": item.offerName,
-        })
-        orders.append(dto)
+        order_dto: OrderDTO = await _validate_order_created(created_notification)
 
-    return orders
+        items_dto: list[CreateOrderItemsDTO] = await _validate_order_items(
+            order_data=unprocessed_order,
+        )
 
+        try:
+            order_model: Orders = await create_order_with_items(order_dto, items_dto)
+        except IntegrityError:
+            log.exception("Integrity error while creating order")
+            raise
+        except Exception:
+            log.exception("Unexpected error while creating order")
+            raise
 
-def dto_to_order(dto: CreateOrderDTO) -> Order:
-    return Order(
-        campaign_id=dto.campaign_id,
-        market_order_id=dto.market_order_id,
-        status=dto.status,          # если enum -> строка, ок
-        substatus=dto.substatus,
-        product_name=dto.product_name,
-        quantity=dto.quantity,
-        price_from_market=dto.price_from_market,
-        market_commission=dto.market_commission,
-        market_costs=dto.market_costs,
-        discount=dto.discount,
-        shipping_date=date.fromisoformat(dto.shipping_date) if dto.shipping_date else None,
-    )
+        return {"message": "ok", "handled": "ORDER_CREATED", "order_id": order_model.id}
 
-asyncio.run(process_notification_payload(test_json))
+    async def handle_order_updated_status(self) -> OrderDTO:
+        updated_notification = OrderStatusUpdatedNotificationDTO.model_validate(self.payload)
+
+        order_dto = await _validate_order_update_status(updated_notification)
+        try:
+            order_model: Orders = await update_order_status(order_dto)
+        except IntegrityError as e:
+            return {"message": "duplicate_or_integrity_error", "detail": str(e)}
+        except Exception as e:
+            return {"message": "error", "detail": str(e)}
+        return {"message": "ok", "handled": "ORDER_STATUS_UPDATED"}
+
+HANDLERS: dict = {
+    NotificationType.ORDER_CREATED: ManageOrders.handle_order_created,
+    NotificationType.ORDER_STATUS_UPDATED: ManageOrders.handle_order_updated_status,
+}
+
+manage_order = ManageOrders(test_json)
+result_1 = asyncio.run(manage_order.handle_order())
+print(result_1)
+

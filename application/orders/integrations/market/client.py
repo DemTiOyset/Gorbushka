@@ -1,9 +1,13 @@
-﻿import requests
+﻿import asyncio
+
+import requests
 
 
 from application.config import settings
-from application.orders.shemas.business_order import GetBusinessOrdersResponseDTO
-from application.orders.shemas.repo_order import CreateOrderDTO
+from application.orders.shemas.notifications import GetBusinessOrdersResponseDTO
+
+
+from application.orders.test_json import a as test_json
 
 
 async def get_order(
@@ -35,5 +39,3 @@ async def get_order(
     order_data = parsed.orders[0]
 
     return order_data
-
-

@@ -11,7 +11,8 @@ from application.config import settings
 
 from application.db import Base
 
-from application.orders.models.order import Order
+from application.orders.models.orders import Orders
+from application.orders.models.order_items import OrderItems
 
 
 # this is the Alembic Config object, which provides

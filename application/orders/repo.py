@@ -1,32 +1,45 @@
-﻿from sqlalchemy.ext.asyncio import AsyncSession
+﻿from typing import TypeVar, Type, Generic, Mapping, Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from application.orders.models.order import Order
+from application.orders.models.order_items import OrderItems
+from application.orders.models.orders import Orders
 
 
-class OrderRepository:
+T = TypeVar("T")
+
+class BaseRepository(Generic[T]):
+    model: type[T]
+
     @classmethod
-    async def create(cls, session: AsyncSession, order: Order) -> Order:
+    async def create(cls, session: AsyncSession, obj: T) -> T:
         """
         Create a new order.
 
         Репозиторий НЕ делает commit.
         flush нужен, чтобы получить PK/сгенерированные поля до commit.
         """
-        session.add(order)
+        session.add(obj)
         await session.flush()
-        return order
+        return obj
 
     @classmethod
-    async def get_by_id(
-        cls,
-        session: AsyncSession,
-        order_id: int,
-    ) -> Order | None:
-        """
-        Get order by PK.
-        """
-        return await session.get(Order, order_id)
+    async def get_by_market_order_id(
+            cls,
+            session: AsyncSession,
+            campaign_id: int,
+            market_order_id: int,
+    ) -> T | None:
+        stmt = (
+            select(cls.model)
+            .where(
+                cls.model.campaign_id == campaign_id,
+                cls.model.market_order_id == market_order_id,
+            )
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
     @classmethod
     async def list(
@@ -35,13 +48,13 @@ class OrderRepository:
         *,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[Order]:
+    ) -> list[T]:
         """
         List active orders with pagination.
         """
         stmt = (
-            select(Order)
-            .where(Order.is_active.is_(True))
+            select(T)
+            .where(T.is_active.is_(True))
             .limit(limit)
             .offset(offset)
         )
@@ -52,10 +65,33 @@ class OrderRepository:
     async def delete(
         cls,
         session: AsyncSession,
-        order: Order,
+        obj: T,
     ) -> None:
         """
         Hard delete.
         """
-        await session.delete(order)
+        await session.delete(obj)
         await session.flush()
+
+    @classmethod
+    async def update(
+            cls,
+            session: AsyncSession,
+            obj: T,
+            data: Mapping[str, Any],
+    ) -> T:
+        """
+        Update fields on an already loaded ORM object.
+        """
+        for key, value in data.items():
+            setattr(obj, key, value)
+
+        await session.flush()  # отправит UPDATE в БД в рамках транзакции
+        await session.refresh(obj)  # опционально: подтянуть значения, выставленные БД (onupdate, триггеры)
+        return obj
+
+class OrderRepository(BaseRepository[Orders]):
+    model = Orders
+
+class OrderItemsRepository(BaseRepository[Orders]):
+    model = OrderItems

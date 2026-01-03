@@ -1,28 +1,16 @@
-﻿from datetime import datetime, date
+﻿from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import (
-    String, Integer, BigInteger, Numeric, Date, DateTime,
-    UniqueConstraint, Index, func, text
-)
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Date, Integer, String, Numeric, ForeignKey, DateTime
+from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from application.db import Base
 
 
-class Order(Base):
-    __tablename__ = "orders"
+class OrderItems(Base):
+    __tablename__ = "order_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-
-    # --- Идентификация в Яндекс.Маркете (ключ к идемпотентности) ---
-    campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    market_order_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-
-    # --- Состояние заказа из уведомлений Маркета ---
-    status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    substatus: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # --- Твои бизнес-поля (примерно из того, что ты перечислил) ---
     product_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -36,19 +24,25 @@ class Order(Base):
     discount: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), nullable=True)
     preliminary_costs: Mapped[Optional[float]] = mapped_column(Numeric(14, 2), nullable=True)
 
-    # --- Технические timestamps (когда мы записали/обновили в нашей БД) ---
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=text('(now() at time zone "utc")'),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=text('(now() at time zone "utc")'),
-        onupdate=func.now(),
+        default=datetime.now,
         nullable=False,
     )
 
-    __table_args__ = (
-        Index("ix_orders_market", "campaign_id", "market_order_id"),
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=datetime.now,
+        onupdate=datetime.now,
+        nullable=False,
+    )
+
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    order: Mapped["Orders"] = relationship(
+        "Orders",
+        back_populates="order_items",
     )

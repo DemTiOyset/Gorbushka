@@ -3,7 +3,7 @@ from typing import List, Literal
 
 from pydantic import BaseModel
 
-from enums import *
+from application.orders.shemas.enums import *
 
 
 class NotificationApiErrorDTO(BaseModel):
@@ -27,26 +27,24 @@ class NotificationOrderItemDTO(BaseModel):
     offerId: str
 
 
-
 class PingNotificationDTO(BaseModel):
     notificationType: NotificationType.PING
     time: datetime
 
-
 class OrderCreatedNotificationDTO(BaseModel):
     notificationType: Literal[NotificationType.ORDER_CREATED]
     campaignId: int
-    createdAt: List[datetime]
+    createdAt: datetime
     items: List[NotificationOrderItemDTO]
     orderId: int
 
 
 class OrderStatusUpdatedNotificationDTO(BaseModel):
-    notificationType: NotificationType.ORDER_STATUS_UPDATED
+    notificationType: Literal[NotificationType.ORDER_STATUS_UPDATED]
     campaignId: int
     orderId: int
-    status: OrderStatusType
-    substatus: OrderSubstatusType
+    status: str
+    substatus: str
     updatedAt: datetime
 
 
