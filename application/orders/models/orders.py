@@ -43,6 +43,12 @@ class Orders(Base):
         nullable=False,
     )
 
+    is_returned: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
     is_finished: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

@@ -83,7 +83,7 @@ class OrderReturnStatusUpdatedNotificationDTO(BaseModel):
 
 
 class OrderUpdatedNotificationDTO(BaseModel):
-    notification_type: NotificationType.ORDER_UPDATED
+    notificationType: Literal[NotificationType.ORDER_UPDATED]
     campaignId: int
     updateType: OrderUpdateType
     updatedAt: datetime

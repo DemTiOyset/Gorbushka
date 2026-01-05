@@ -33,9 +33,7 @@ async def get_order(
     payload = response.json()
     parsed = GetBusinessOrdersResponseDTO.model_validate(payload)
 
-    # print(parsed.orders[0].prices)
-    # print(parsed.orders[0].items[0].prices)
-    # print(parsed.orders[0].status)
     order_data = parsed.orders[0]
 
     return order_data
+

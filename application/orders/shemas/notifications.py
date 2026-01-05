@@ -1,4 +1,5 @@
-﻿from typing import List, Optional
+﻿from datetime import datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -40,7 +41,7 @@ class BusinessOrderItemDTO(BaseModel):
 class BusinessOrderShipmentDTO(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    shipmentDate: str
+    shipmentDate: datetime
     shipmentTime: Optional[str] = None
 
 class DeliveryOrderDatesDTO(BaseModel):

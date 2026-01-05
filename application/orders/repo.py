@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from application.orders.models.order_items import OrderItems
 from application.orders.models.orders import Orders
@@ -80,9 +81,7 @@ class BaseRepository(Generic[T]):
             obj: T,
             data: Mapping[str, Any],
     ) -> T:
-        """
-        Update fields on an already loaded ORM object.
-        """
+
         for key, value in data.items():
             setattr(obj, key, value)
 
@@ -92,6 +91,32 @@ class BaseRepository(Generic[T]):
 
 class OrderRepository(BaseRepository[Orders]):
     model = Orders
+
+    @staticmethod
+    async def update_shipment_date(
+            session: AsyncSession,
+            order_id: int,
+            shipment_date: str,
+    ):
+        stmt = (select(Orders).
+                where(Orders.market_order_id==order_id).
+                options(
+                selectinload(
+                Orders.order_items)
+            )
+        )
+
+        result = await session.execute(stmt)
+        order = result.scalar_one_or_none()
+        if order is None:
+            return
+
+        for item in order.order_items:
+            item.shipping_date = shipment_date
+
+        await session.flush()
+
+
 
 class OrderItemsRepository(BaseRepository[Orders]):
     model = OrderItems
