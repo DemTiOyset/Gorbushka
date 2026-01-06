@@ -13,10 +13,10 @@ from application.orders.services.manage_validation import _validate_order_update
 from application.orders.shemas.enums import NotificationType
 from application.orders.shemas.message import OrderCreatedNotificationDTO, OrderStatusUpdatedNotificationDTO, \
     OrderCancelledNotificationDTO, OrderUpdatedNotificationDTO
-from application.orders.shemas.notifications import GetBusinessOrdersResponseDTO
-from application.orders.test_json import updated as test_json
+from application.orders.shemas.notifications import GetBusinessOrdersResponseDTO, BusinessOrderDTO
+from application.orders.test_json import a as test_json
 
-from application.orders.integrations.market.client import get_order
+from application.orders.integrations.market.client import get_order, get_prices_from_market
 from application.orders.shemas.orders import OrderDTO, CreateOrderItemsDTO
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ class ManageOrders:
         return await handler(self)
 
     async def handle_order_created(self) -> dict[str, Any]:
-        unprocessed_order = await get_order(
+        unprocessed_order: BusinessOrderDTO = await get_order(
             self.payload["campaignId"],
             self.payload["orderId"]
         )
@@ -44,8 +44,14 @@ class ManageOrders:
 
         order_dto: OrderDTO = await _validate_order_created(created_notification)
 
+        offer_ids = [item.offerId for item in unprocessed_order.items]
+
+        prices_by_offer = await get_prices_from_market(offer_ids)
+
         items_dto: list[CreateOrderItemsDTO] = await _validate_order_items(
             order_data=unprocessed_order,
+            prices_by_offer=prices_by_offer
+
         )
 
         try:
@@ -130,5 +136,5 @@ HANDLERS: dict = {
 
 manage_order = ManageOrders(test_json)
 
-asyncio.run(manage_order.handle_order_updated())
+asyncio.run(manage_order.handle_order())
 

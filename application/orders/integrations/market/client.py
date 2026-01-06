@@ -1,5 +1,8 @@
 ﻿import asyncio
+from decimal import Decimal
+from typing import List, Iterable
 
+import httpx
 import requests
 
 
@@ -17,7 +20,7 @@ async def get_order(
                    f"api.partner.market.yandex.ru/v1/businesses/"
                    f"{settings.business_id}/orders",
 ):
-    params = {
+    body = {
         "campaignIds": [campaign_id],
         "orderIds": [order_id]
         }
@@ -27,13 +30,47 @@ async def get_order(
         "Content-Type": "application/json",
     }
 
-    response = requests.post(url, headers=headers, json=params)
-    response.raise_for_status()
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.post(url, headers=headers, json=body)
+        resp.raise_for_status()
+        payload = resp.json()
 
-    payload = response.json()
     parsed = GetBusinessOrdersResponseDTO.model_validate(payload)
 
     order_data = parsed.orders[0]
 
     return order_data
+
+async def get_prices_from_market(
+        offer_ids: Iterable[str],
+        url: str = f"https://"
+                   f"api.partner.market.yandex.ru/v2/businesses/"
+                   f"{settings.business_id}/offer-prices"
+):
+
+    body = {"offerIds": offer_ids}
+
+    headers = {
+        "Api-Key": settings.api_key,
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        resp = await client.post(url, headers=headers, json=body)
+        resp.raise_for_status()
+        payload = resp.json()
+
+    # payload["result"]["offers"] = [{ "offerId": "...", "price": {"value": ...}}, ...]
+    offers = payload.get("result", {}).get("offers", [])
+
+    prices_by_offer: dict[str, Decimal] = {}
+    for offer in offers:
+        oid = offer.get("offerId")
+        price = (offer.get("price") or {}).get("value")
+        if oid is None or price is None:
+            continue
+        prices_by_offer[oid] = Decimal(str(price))
+
+    return prices_by_offer
+
 

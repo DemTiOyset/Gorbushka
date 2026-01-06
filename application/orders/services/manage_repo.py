@@ -10,7 +10,8 @@ from application.orders.shemas.orders import OrderDTO, CreateOrderItemsDTO
 
 async def create_order_with_items(
         order_dto: OrderDTO,
-        items_dto: list[CreateOrderItemsDTO]
+        items_dto: list[CreateOrderItemsDTO],
+
 ) -> Orders:
     order = dto_to_order(order_dto)
     order.order_items = [dto_to_order_item(dto) for dto in items_dto]

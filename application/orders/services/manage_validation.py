@@ -18,20 +18,25 @@ async def _validate_order_created(notification: OrderCreatedNotificationDTO) -> 
 
 async def _validate_order_items(
         order_data: BusinessOrderDTO,
+        prices_by_offer
 ) -> list[CreateOrderItemsDTO]:
 
     shipping_date = order_data.delivery.shipment.shipmentDate
 
     order_items: list[CreateOrderItemsDTO] = []
     for item in order_data.items:
+        price_from_market = prices_by_offer.get(item.offerId)
+
+        payment_value = item.prices.payment.value if item.prices.payment else None
+        subsidy_value = item.prices.subsidy.value if item.prices.subsidy else None
 
         order_item = CreateOrderItemsDTO.model_validate({
             "quantity": item.count,
             "shipping_date": shipping_date,
-            "price_from_market": item.prices.payment.value,
+            "price_from_market": price_from_market,
             "product_name": item.offerName,
-            "market_costs": item.prices.payment.value,
-            "market_commission": item.prices.subsidy.value,
+            "market_costs": payment_value,
+            "market_commission": subsidy_value
         })
         order_items.append(order_item)
 
